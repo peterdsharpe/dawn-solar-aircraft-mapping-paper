@@ -1,0 +1,781 @@
+\documentclass[conf]{new-aiaa}
+%\documentclass[journal]{new-aiaa} for journal papers
+\usepackage[utf8]{inputenc}
+
+\usepackage{float}
+\usepackage{graphicx}
+\usepackage{subfigure}
+\usepackage{amsmath}
+\usepackage[version=4]{mhchem}
+\usepackage{siunitx}
+\usepackage{longtable,tabularx}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{tikz}
+\usetikzlibrary{arrows,chains,positioning,scopes,shapes.geometric,shapes.misc,shadows}
+\setlength\LTleft{0pt}
+\usepackage{mdframed}
+\newmdenv[
+    topline=false,
+    bottomline=false,
+    skipabove=\topsep,
+    skipbelow=\topsep,
+    innerleftmargin=30pt,
+    innerrightmargin=30pt,
+    backgroundcolor=black!5
+]{example}
+
+
+\usepackage{biblatex}
+\addbibresource{references.bib}
+\newcommand{\Dawn}{\textit{Dawn}}
+\newcommand{\ddt}{\textit{Dawn Design Tool}}
+\newcommand{\asb}{\textit{AeroSandbox}}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,
+    urlcolor=blue,
+    citecolor=black,
+}
+\sisetup{output-exponent-marker=\ensuremath{\mathrm{e}}}
+
+% Outline:
+% https://docs.google.com/document/d/1L0TYrbqGCKsX5HwSgaz551pxAYe0np6nSmjNCxohjA0/edit?usp=sharing
+
+\title{An Optimization Approach to Mapping the Feasible Mission Space of a High-Altitude Long-Endurance Solar Aircraft}
+% Mapping out mission space
+% Design optimization
+% Scientific Solar Aircraft
+
+\author{
+    Peter D. Sharpe\footnote{Graduate Student, Dept. of Aeronautics and Astronautics, International Center for Air Transportation, AIAA Student Member}
+    and
+    Annick J. Dewald\footnote{Graduate Student, Dept. of Aeronautics and Astronautics, International Center for Air Transportation, AIAA Student Member}
+%    and
+%    Trevor Long\footnote{Graduate Student, Dept. of Aeronautics and Astronautics, International Center for Air Transportation, AIAA Student Member}
+    and
+    R. John Hansman\footnote{T. Wilson Professor of Aeronautics, Dept. of Aeronautics and Astronautics, International Center for Air Transportation, AIAA Fellow}}
+\affil{Massachusetts Institute of Technology, Cambridge, MA 02139}
+
+\begin{document}
+
+    \maketitle
+
+    \begin{abstract}
+        High-Altitude Long-Endurance (HALE) aircraft are uniquely equipped to fill some of the major lapses in the current understanding of rapid and irreversible climate change. Given a current understanding of solar-electric HALE vehicles, the feasible space is limited by solar flux. This nominally restricts flight to either low latitudes or summer months; however this is dependent on thousands of mission parameters, technology assumptions, and structural models. Here, a Multidisciplinary Design Optimization (MDO) framework is presented as a tool to illustrate the feasible mission space of such an aircraft. Analysis conducted with this tool indicates that a high altitude platform with solar panels for energy production and batteries for energy storage enables a rich feasibility space. The key mission drivers are identified as those pertaining to the solar flux, including latitude and time of year, as well as atmospheric conditions such as steady winds, cruise altitude, and gusts. Several key technological parameters are identified, and their anticipated improvements have been used to outline the predicted growth in the feasible space of solar-electric HALE systems. Two climate monitoring missions are presented as case studies of the optimization framework, and to demonstrate a science need for a stratospheric long endurance aircraft. Key challenges and risks of designing, building and operating these HALE aircraft are discussed.
+    \end{abstract}
+
+    \section*{Nomenclature}
+
+    {\renewcommand\arraystretch{1.0}
+    \noindent\begin{longtable*}{@{}l @{\quad=\quad} l@{}}
+                 A/C & Aircraft\\
+                 $\bar{c}$ & Wing mean aerodynamic chord\\
+                 CONUS & Continental United States\\
+                 Fuse. & Fuselage\\
+                 Geom. & Vehicle geometry\\
+                 HALE  & High Altitude Long Endurance \\
+                 kft & Thousands of feet \\
+                 $k_v$  & Motor Constant Velocity \\
+                 LIDAR & Light Detection and Ranging \\
+                 $m_{total}$& Total aircraft mass\\
+                 MPPT & Maximum Power Point Tracking unit\\
+                 OML & Outer Mold Line\\
+                 $P_{net}$& Instantaneous net power at battery (sign: positive-charging)\\
+                 Prop.& Propulsion system (propeller, motor, controller)\\
+                 Psys.& Power systems (batteries, solar panels, controllers)\\
+                 $\mathcal{R}$& Residual of a governing equation\\
+                 $t$& Time [seconds]\\
+                 TOGW & Takeoff Gross Weight\\
+                 Traj. & Trajectory (including all unsteady variables)\\
+                 $\vec{V}$& Velocity vector\\
+                 $V_\text{TAS}$& True airspeed\\
+                 $V_\text{IAS}$& Indicated airspeed\\
+                 $V_\text{wind, worst}$& Worst-case expected steady wind speed \\
+                 $V_v$& Vertical tail volume coefficient\\
+                 $x_{sm}$& Static margin\\
+                 $\alpha$& Angle of Attack\\
+                 $\gamma$& Flight path angle\\
+                 $\delta$& Control surface deflection\\
+
+
+    \end{longtable*}}
+
+
+    \section{Introduction}
+    \label{section:introduction}
+    High-Altitude Long-Endurance (HALE) aircraft are broad class of aircraft that fly for days, weeks, or months at a time at stratospheric altitudes.
+    For specific missions in the areas of communications, defense, and scientific Earth observation, these HALE systems have unique advantages over satellites, conventional manned aircraft, and terrestrial platforms.
+    Compared to satellite observatory platforms, HALE are generally cheaper by an order of magnitude, easier to upgrade and repair, require smaller link budgets, and offer latency similar to Earth-based networks.
+    Furthermore, HALE platforms can image ground-based targets at a resolution much higher than satellites can; this is because HALE platforms operate roughly 50x closer to Earth's surface than Low Earth Orbit (LEO) satellites\footnote{Assuming a typical HALE operating altitude of 16 km and a typical LEO satellite altitude of 800 km.} \cite{Gonzalo}.
+%    Although HALE platforms have an surveillance range that is more limited than that of satellites, this range is still generally larger than that of ground-based or manned-aircraft systems.
+    Finally, while satellites have revisit rates on the order of once per three days, HALE aircraft are capable of persistent monitoring over targets and can continuously update flight path in response to on-board observations and/or ground station inputs.
+    Compared to manned aircraft, unmanned HALE aircraft are capable of much longer flight times, allowing for months of continuous Earth observation data or continuous surveillance at a lower cost per flight hour due to significantly less manpower requirements \cite{Gonzalo}.
+    Longer flight times also enable fewer trips through the troposphere, where interactions with aviation traffic are more frequent, weather is a concern, and wind gusts are stronger \cite{Romeo}.
+
+    \subsection{Historical High-Altitude Long-Endurance Aircraft }
+    There has been considerable development of aircraft capable of high altitude and/or long endurance flight for several decades. Examples of these aircraft (including both operational vehicles and demonstrators) include the Lockheed U-2, the Boeing Condor and Phantom Eye, Northrup's Global Hawk, the AeroVironment Helios and Global Observer, the Lockheed Martin High Altitude Airship, the Solar Impulse project, Aurora's Odysseus, Facebook's Aquila program, Google's Project Loon, and the Airbus Zephyr program \cite{Nickol}. These aircraft span a wide range of configurations, power systems, and concepts of operations to handle the two main challenges of HALE flight: generating lift in excess of weight given the low air density at altitude and providing sustained power throughout long flights.
+
+%    The type of HALE aircraft explored within this paper employs extremely lightweight structures and highly efficient aerodynamic design to enable stratospheric flight in low air density environments, similar to the Airbus Zephyr, Aurora Odysseus, or AeroVironment Helios. Because these aircraft are considerably lighter and slower than high-speed HALE aircraft (such as the U-2), the propulsive power requirements are much smaller and therefore regenerative power systems are feasible enabling much longer flight times. Endurance is closely coupled with battery energy density, given how dependent these systems are on ultralight design, and solar cell efficiency, given the area constraint on where solar cells can be mounted. The large wingspans do allow a considerable area to mount solar cells to produce power, but the energy closure is a tight constraint and most of these aircraft have a limited performance envelope constrained by the seasonal and latitude effect on incoming solar energy. These vehicles are complicated by their highly aerodynamic and light weight design, as high aspect ratio flexible wings have historically had disastrous consequences, such as the Helios aircraft failure.
+
+    \subsection{The Case for Solar-Electric HALE}
+    HALE aircraft design is highly driven by the selection of a power source, and a wide range of potential power system have been used for historical HALE aircraft. Here, we split HALE aircraft power sources into two categories: \textit{fueled systems} where all energy onboard is stored at takeoff, and \textit{regenerative systems} that generate energy onboard.
+
+    Practical power options for fueled HALE systems have historically consisted of conventional gas power and hydrogen gas power. Flight at stratospheric altitudes makes operating a gas engine challenging given the low partial pressure of oxygen; compressor systems can alleviate this at the cost of increased system weight. Fueled systems are necessarily open cycle - energy availability is a constraint on endurance as the stored energy is finite and nonrecoverable. Therefore, maximum endurances of such vehicles are generally in the range of 4 to 7 days.
+
+    Regenerative systems have also been considered. A natural choice for power generation is harnessing solar power via photovoltaic panels. Solar energy harvesting in the stratosphere is not impeded by cloud cover, and the limited atmospheric scattering at altitude further increases photovoltaic efficiency by a few percent compared to ground-based numbers. Solar aircraft operate closed-cycle, in the sense that energy availability is not a constraint on endurance - aircraft can fly for months at a time. (Therefore, endurance is often set by mission interest, seasonality, reliability \& maintenance needs, or energy storage ability.)
+
+    There are two relevant performance metrics for solar cells: efficiency and area density. Current practical cell efficiencies are on the order of 25\%, and area densities are of the order of 0.3 \si{\kg/\m^3}. This area density is relatively low, in the sense that a solar airplane typically devotes only around 5\% of its all-up weight to solar cells. Thus, area density differences between cell manufactures has little impact on overall vehicle sizing. On the other hand, cell efficiency is of the utmost importance. Most solar airplanes are wing-area-constrained\footnote{in the sense that optimized designs generally put solar panels on every allowable surface.}, so decreased cell efficiency cannot be compensated for by adding additional panels - the result is simply a reduction in available power.
+
+    Solar airplanes are a unique type of regenerative system as energy input to the system is cyclical (and specifically, diurnal). Therefore, energy must be stored in some form to sustain overnight flight. If a solar airplane can fly a 24-hour period and finish with more stored energy than it began with, it is said to \textit{close the energy cycle} - beyond this, long-endurance (e.g. months-long) flight is possible.
+
+    By far the most straightforward and common approach to energy storage is battery storage. Here, the two relevant metrics are battery cell specific energy and the battery packing factor (which denotes what fraction of a battery \textit{pack} consists of \textit{cells} by mass, after accounting for battery management systems). Current battery cell specific energies vary widely from 250 Wh/kg to 450 Wh/kg, and battery packing factors are on the order of 75\%. The product of these two metrics is the battery's pack-level specific energy, which is one of the most important performance metrics of a solar airplane. Approximately half of the mass of a typical solar airplane consists of batteries, so small changes in battery specific energy have large downstream effects on vehicle sizing and mission feasibility.
+
+    The present work is motivated by two science missions that are uniquely well-served by solar-electric HALE aircraft with battery energy storage, so these aircraft are the focus of the remainder of this work.
+
+
+    \section{Missions of Interest for Climate Science Applications}
+    \label{section:missions-of-interest}
+    Since 1901, the global average temperatures have increased 1.8 degrees Fahrenheit, far above the natural variations in climate, indicating this change to the climate structure is directly caused by human activity. The overwhelming evidence shows human behaviors; including emitting greenhouse gas through fossil fuel burning, changes in land use, and vast deforestation, are key contributing factors to climate change \cite{NCA4}. However, it is unclear how these processes are linked to the changing climate structure or how future changes in this behavior could limit the damage to the Earth, oceans and atmosphere. Additionally, there is large uncertainty in climate models that represent the meta scale changes to the mean temperatures, as well as the micro-level models of individual climate phenomena caused by the large scale changes, including sea-level rise or increasing ozone depletion in the stratosphere.
+
+    The most significant need in response to the rapid and irreversible climate structural changes is data driven forecasts for a plethora of risk areas, including; rapid sea level rise, wildfire and flood risk, ozone degradation and its impact on human health, agricultural damage from drought, and risk of hurricane damage. Although this is not an exhaustive list, in each of these areas there is a clear societal need for a trusted forecast of risk that could push the needle on environmental regulation and innovation for this new area of irreversible and rapid climate damage. In recent years, the development of high-resolution four-dimensional imaging has enabled airborne platforms to capture the structures of the atmosphere most pertinent to the changing climate, allowing aircraft to observe new insights never before possible.
+
+    HALE vehicles have several advantages over satellites in addressing these clear needs in the climate science field, including; the ability to adjust flight path in real time to on board observations and/or ground station inputs, persistence over ground targets, and the potential for in-situ observations of stratospheric phenomena \cite{SACOSadvantages}. The following sections outline two representative missions where HALE aircraft provide key insights into high-risk climate phenomena; sea-level rise and ozone degradation in the stratosphere.
+
+    \subsection{The Need for Observations of Atmospheric Chemistry to Understand the Phenomena of Ozone Degradation and its Human Health Impact over the Continental United States}
+
+    The stratosphere above the central United States during the summer is an area of unique ozone loss risk, due to a combination of factors unique to this time and region. Warming waters within the Gulf of Mexico feeds warm and humid air to the lower atmosphere over the central US, which in turn leads to the development of severe storms over the Great Plains. These storms drive water vapor and potentially halogen radical precursors into the stratosphere via convective cores. Once the water vapor has been injected, the stratospheric anti-cyclonic flow increases the retention time of the air parcel, therefore extending the time for the catalytic processes to remove ozone in the same chemical reactions that created the Antarctic ozone hole \cite{Keutsch}.
+
+    To better understand the relationships driving this phenomena, high spatial resolution and high sensitivity in-situ observations of catalytic free radicals and their evolution over time are required to determine the effects on ozone depletion. In addition to the measurement of free radicals (including \ce{ClO}, \ce{BrO}, \ce{IO}, \ce{OH}, \ce{OH}, \ce{H2O}, \ce{NO}, \ce{NO2}), simultaneous measurements of the reactive intermediates (including \ce{HCl}, \ce{ClONO2}, \ce{HONO2}, \ce{H2O}, \ce{O3}), as well as the dynamical tracers (\ce{CO}, \ce{CO2}, \ce{N2O}, \ce{SF6}) are required. The concentrations of these species must be measured continuously in the one to two weeks following the convection of water vapor into the stratosphere to quantify the changing concentrations of the coupled species and dissect the kinetics of the photo-chemical system \cite{Keutsch}.
+
+    The observation need is a system capable of measuring concentrations of catalytic free radicals, reactive intermediates, and dynamical tracers within the same volume element of stratospheric air. Additionally, to understand the link to ozone depletion locally, the air injected by convective forcing must be measured continuously for a week plus, which is only possible with in-situ observations of the target stratospheric air parcels. Therefore, satellite systems, although capable of measuring concentrations of these species, cannot measure at the required spacial resolution nor can they follow the temporal evolution of the injected domain. Manned stratospheric aircraft are also inadequate for these observations, as the limited flight duration make the continuous monitoring in the Lagrangian reference frame of the air parcel of interest impossible. Lastly, a lighter-than-air concept would not be capable of following injected parcels of air given the slow flight speeds of such vehicles and the wind speeds at altitudes within the geographic domain \cite{SACOSadvantages}.
+
+    Given the target phenomena occurs during the summer in a mid-latitude region, the solar-electric power system should be able to support long-duration flight to make persistent monitoring a reality. Additionally, the 20 to 30 m/s flight speeds and loiter ability of these HALE vehicles enable the continuous monitoring of key parcels of air within a nearly-Lagrangian reference frame. The high resolution data required to conduct the scientific analysis of this observed data, both in time and in space, can be collected via a stratospheric aircraft.
+
+    To better understand this local ozone depletion process, as well as predict the effects it will have on the climate and human health, Professor James Anderson within the Chemistry department at Harvard has developed an instrument capable of measuring free radicals above these convective storms. This instrument will be capable of measuring the concentrations of ClO and BrO via atomic resonance scattering \cite{instrument}. In personal correspondence, Dr. Anderson estimated that this payload has a mass of 30 kg, a daytime power draw of 500 W, and a nighttime power draw of 150 W. To best enable this study, a platform must be capable of flight within the stratosphere for a continuous six weeks between mid-July and the end of August over the continental United States (CONUS) while supplying power the the instrumentation payload.
+
+    \subsection{The Need for Persistent Monitoring of Glacial Dynamics to Improve Models of Sea-Level Rise}
+
+    The retreat of ice sheets and glaciers are one of the key sources of sea-level rise, however the projections range from centimeters to meters above the current level by 2100. This wide uncertainty is due to an inability to predict rapid mass loss caused by iceberg calving and a lack of understanding of the ice-bedrock interface that governs glacial slip rates. Should grounded ice shelves calve into the ocean, the destabilizing effect on the glacier could rapidly increase ice flow rates and result in as much as a full meter of sea-level rise within a short time span of roughly a decade. Observations of remote ice sheets have improved drastically over the past decade through satellite imaging of these structures. Unfortunately, these observations are lacking in one critical area, temporal resolution, therefore the potential discrete jump in sea-level cannot be adequately predicted given current observations \cite{Minchew}.
+
+    Satellites at these extreme altitudes cannot be geostationary, therefore revisit rates are roughly once every third day and cannot capture the rapid and unpredictable ice fissure propagation that leads to calving. Other observations platforms such as manned aircraft are expensive and logistically difficult given the remote locations of these glaciers, while balloon-borne observation systems cannot station-keep over the target ice shelves given the high wind speeds at altitude \cite{SACOSadvantages}.
+
+    A HALE platform meets the observation requirements of this mission given it can spend nearly 100 percent of its time tracing an accurate path over the ice flows of interest, ensuring that key fissure and calving events are captured and providing the key breakthrough required in temporal resolution of observations. Additionally, the 14 to 20 kilometer flight altitude ensures the spatial resolution will be at the sub-meter scale necessary to resolve the key details in the ice flow to map the deformations and wave propagation that cause fissure.
+
+    In Greenland, these ice shelf calving events are driven by the summer sun and warm temperatures \cite{melting}, therefore the seasonality constraint of the solar-electric power system should not limit the ability of this HALE aircraft of capturing the critical events. In the Antarctic region, these events happen throughout the year irrespective of season, allowing the HALE concept to capture the collapse events that occur within the summer months.
+
+    This potential application of HALE aircraft is being pursued in conjunction with Brent Minchew and his lab in the MIT Department of Earth, Atmospheric, and Planetary Sciences. Gamma Remote Sensing has partnered with Dr. Minchew to develop a compact repeat-pass interferometric synthetic aperture radar system at L-band to measure glacier flow induced displacements to measure from VTOL UAV Scout B1- 100 \cite{GammaRemoteSensing}. To meet the science objectives, the payload is expected to have a weight of approximately 5.15 kilograms and require continuous power of 100 watts \footnote{Values for this instrumentation system come from personal correspondence with Professor Minchew}.
+
+
+    \section{Key Challenges of HALE Aircraft}
+
+    The following section outlines the key identified challenges in developing solar-electric HALE aircraft mentioned previously, focusing on the structurally lightweight and highly aerodynamic class of HALE aircraft as this is the configuration best positioned to meet the demonstrated need of climate observing missions. The main challenges in the development and design of these aircraft include; highly efficient aerodynamic design, designing the lightweight and flexible structure of the wing to be resilient to turbulence and gusts, regenerative power generation and storage, low payload weight capacity, seasonality and latitude constraints of solar-electric power system, and maintaining position over ground targets given wind speeds at altitude.
+
+    \subsection{Aerodynamic Design}
+    Given the limited power available due to the solar-electric power system and the low air density at cruise altitude, maximizing the aerodynamic performance of the aircraft becomes critical. This is realized by maximizing the lift-to-drag ratio, forcing the aircraft to a high aspect ratio wing configuration. A exploration of the current HALE vehicles illustrates the prevalence of this configuration, including Odysseus, Helios, and Zephyr.
+
+    \subsection{Wing Structure and Aircraft Control}
+    Given the extremely tight weight constraints of these vehicles, the structural mass fraction is required to be small in comparison to more conventional aircraft. To achieve this, HALE aircraft have drawn inspiration from the extremely lightweight and fragile construction strategies first employed in Human Powered Aircraft (HPV) such as Daedalus. The large and lightweight wings of these highly aerodynamic aircraft are typically very flexible, adding complexity through aeroelastic effects such as flutter and influence on the stability and control. Given these structural weaknesses, a typical failure mode of these highly fragile aircraft are instabilities driven by gusts at low altitudes, such as the Helios crash in 2003 (Figure \ref{fig:Helios}).
+
+    \begin{figure}[H]
+        \centering
+        \includegraphics[width=12cm]{figures/Helios.jpg}
+        \caption{Solar-electric Helios prototype that succumbed to structural failure during a 2003 test flight \cite{Helios}}
+        \label{fig:Helios}
+    \end{figure}
+
+    Helios, like the other structurally lightweight low-speed HALE vehicles, was driven to a large and flexible wingspan of about 75 meters. During this 2003 crash in Hawaii, turbulence caused an abnormally large wing dihedral, leading to pitch instability and structural failure \cite{Helioscrash}. Following this crash, the Helios program came to a close. The Zephyr program has also lost several aircraft due to structural failures. In 2019 the first and second Zephyr S prototypes crashed; the first due to severe weather and the second due to turbulence during to takeoff that made the aircraft uncontrollable and breakup in flight \cite{Zephyr}.
+
+    Another significant challenge of these flexible wings is ensuring control of the aircraft, given the large and unwieldy nature of these structures. If ailerons are mounted onto the wing for lateral control, the deflection of these control surfaces could deform the flexible wing and produce an unintended consequence. The design of these large wings requires a delicate balance between minimizing structural wing weight as much as possible to reduce the gross takeoff weight and adding structural mass to be more resilient to gusts and turbulence, especially during ascent and descent. The control strategy must also take into account the wing structure and its response to control surface deflections.
+
+    \subsection{Payload Weight Capacity}
+    These HALE aircraft are extremely weight constrained, as every addition of weight requires a larger wing area to generate adequate lift. The consequences of a large wingspan outlined in the previous section make saving weight a critical challenge of HALE aircraft design. While high-speed HALE aircraft such as the Global Hawk or U-2 have payload capacities of 1,500 pounds \cite{globalhawk} and 5,000 pounds \cite{u2} respectively, the historical examples of lightweight and low-speed HALE vehicles have a roughly order of magnitude reduction in payload capacity, such as the 140 pound payload capacity of the Odysseus aircraft \cite{Odysseus2}. This consequently limits the observational instrumentation such an aircraft could carry, which could theoretically limit the potential observational challenges a HALE aircraft could address.
+
+    \subsection{Power Generation and Storage}
+    In these solar-electric aircraft, the vehicle operates solely off incoming power from solar energy. Therefore, the location and season of the operational environment has a significant influence the feasibility of the aircraft. For regenerative aircraft, the power system is sized to ensure diurnal energy closure, meaning a solar aircraft must be capable of ending any given 24-hour period within the mission space with a non-negative amount of energy than what it started with. Perpetual flight is possibly feasible with a solar-electric power system, however, this is dependent on many critical mission parameters (such as location and seasonality of the mission) and key technology assumptions.
+
+    Several technologies are the most critical to ensuring the possibility of diurnal energy closure, including highly efficient and lightweight solar cells, extremely energy dense batteries, and highly efficient components that make up the power-train, including motors, propellers, etc. Losses at every stage of this power generation, storage and consumption process require more batteries and therefore more weight to meet the energy closure requirements. Within the battery pack, the ratio of the battery cells to supplementary electronics such as battery management systems, thermal management systems, wiring, etc, also known as the battery packing efficiency is incredibly important to the vehicle sizing as well. The battery makes up the majority of the total vehicle weight typically, therefore the ratio of total stored battery power to battery system weight is a critical sizing parameter. The entire power system must be designed incredibly efficiently to ensure the success of the vehicle, and the state of the art and expensive solar cell and battery technologies must be utilized to keep the vehicle weight and size feasible.
+
+    \subsection{Seasonality and Latitude Constraints of Mission Envelope}
+    The diurnal energy constraint problem in the previous section illustrates the importance of an energy balance between solar power in and propulsive and payload power out. Given the seasonal and geographical variation in solar insolation, solar-electric aircraft appear to be restricted to low-latitude geographic regions (where solar insolation does not vary considerably with season) or summer months (where nights are short and days are long). The following chart demonstrates the total solar flux incident on a horizontal surface over the course of a 24 hour period, as it changes with latitude and time of year (Figure \ref{fig:solar}).
+    \begin{figure}[H]
+        \centering
+        \includegraphics[width=14cm]{figures/solarflux.png}
+        \caption{Total Solar Energy Incident on Horizontal Surface over a Day}
+        \label{fig:solar}
+    \end{figure}
+
+    Given the incredibly tight constraints on energy closure, sustaining flight through the long nights of winter would require an amazingly large battery pack that would be near impossible to carry. Additionally, the wing area would need to explode to ensure enough surface area to capture enough power during the short days, worsening the historical wing structural risk discussed previously. Therefore, certain climate science missions are not possible using this platform if the target area and target seasonality do not line up with the feasible performance envelope of a solar-electric aircraft, which will be more definitively defined in subsequent sections.
+
+    \subsection{Maintaining Station Given Winds Aloft}
+    The aircraft must also be capable of station-keeping against high winds, as most climate science missions are attempting to observe a fixed location on the Earth, track the progress of some natural disaster such as wildfires, or map a region either on the Earth's surface or within the stratosphere. Although wind conditions in the stratosphere are slower and less variable than the troposphere, stratospheric wind speeds can be significant and sustained, with marked variation in geographic region, season, and altitude. This problem is exacerbated by the observation that the aforementioned energy closure problem naturally drives the optimal design to low wing loadings (as energy generation and wing area are inherently coupled for a solar aircraft), and therefore, low airspeeds. Increasing the flight speed to meet the station-keeping requirement also increases the required power of the propulsion system, thereby increasing the vehicle size overall. Much like the solar insolation limiting the seasonality and geographic region where this aircraft is feasible, it is likely the winds at cruise altitude have a significant sizing effect and might even make certain regions and seasons infeasible.
+
+% %why hale defense
+%     Unmanned HALE aircraft are a significant asset to the United States military. In the defense industry, the endurance of these HALE aircraft are utilized to perform persistent surveillance, intelligence and reconnaissance missions. A recent report from the Center for Strategic and Budgetary Assessments proposed a "deterrence by detection" strategy. By using a fleet of non-stealth long-endurance aircraft to provide persistent surveillance to allow real time situational awareness in key geographic regions, the hope is that adversaries are less likely to commit acts of aggression if they are aware of constant monitoring from non-stealth Unmanned Aircraft Vehicle \cite{CBSA}. The HALE aircraft design could enable this defense strategy, and depending on the geographic region, solar-powered aircraft could enable perpetual flight for constant surveillance.
+
+
+    \section{Performance Analysis with the \ddt}
+
+    In order to assess the feasibility of flying various climate science missions with a solar aircraft, a dedicated computational tool called the \ddt\ was created. The \ddt\ is a tool for multidisciplinary design optimization (MDO) of solar aircraft that is written in Python and based on \asb \cite{aerosandbox}, an open-source framework for aircraft design optimization. This tool makes it possible to rapidly analyze the feasibility of various aircraft configurations given a set of technology assumptions, mission parameters, and subsystem models.
+
+    The \ddt\ simultaneously optimizes both the vehicle design and the mission profile (flight trajectory), using an approach detailed in \cite{aerosandbox}. The mission requirements (day of year, latitude, payload requirement, etc.) form the inputs to the tool, and the output of the tool is an aircraft design and mission profile that minimizes a given objective function. The tool considers a vast array of phenomena including over 150 fully-coupled submodels, the most critical of which are detailed in the present work. Remaining submodels are documented in the code, which is freely available via a hyperlink in the Appendix.
+
+    The design tool derives its name from the aircraft it was originally used to size: \Dawn, a solar-powered HALE aircraft currently under development in the MIT Department of Aeronautics and Astronautics. \Dawn\ is a large aircraft with a wingspan of 40 meters and an all-up mass of 376 kg, as depicted in Figure \ref{fig:dawn}. Model assumptions made during the original development of the \ddt\ focused on factors that are relevant at this approximate scale\footnote{In particular, aeroelastic considerations and battery handling risks become more important at large scales.}. While the scope of the \ddt\ has since broadened to include solar aircraft of varying size, technology factor, and mission, several key assumptions (e.g. overall vehicle configuration) remain based on the original \Dawn\ development program. These key assumptions, the requirements that drove them, and an abbreviated overview of the many models and disciplines considered within the \ddt, are presented here.
+
+    \begin{figure}[H]
+        \centering
+        \includegraphics[width=0.75\textwidth]{figures/render.png}
+        \caption{Artist's rendering of the MIT \textit{Dawn} solar aircraft.}
+        \label{fig:dawn}
+    \end{figure}
+
+    \subsection{Vehicle Design}
+
+    \subsubsection{Objective Function}
+    The objective function used in the \ddt\ is to minimize wingspan. For general aircraft design problems, this would be something of an unusual choice for objective function; a much more common choice is that of takeoff gross weight (TOGW), as literature shows this to be a reasonable predictor of cost \cite{raymer}. Here, wingspan was instead chosen as an objective primarily as a means of mitigating technical risk. As discussed previously, the most common failure modes of historical solar aircraft have been aerostructural in nature\footnote{Examples in the past 20 years include NASA Helios, Google/Titan Solara 50, Facebook Aquila, and Airbus Zephyr.}, and wingspan is perceived as a more direct surrogate for aerostructural risk than TOGW. Additionally, previous development programs for large solar aircraft (such as Aurora's Odysseus, at 74 meters wingspan) have attributed significant operational challenges (e.g. runway width, transport \& support equipment) directly to wingspan. % citation needed?
+
+    \subsubsection{Configuration}
+
+    The \ddt\ aims to find the minimum-wingspan feasible aircraft within the confines of a user-supplied vehicle configuration. In other words, the \ddt\ optimizes within the vehicle sizing space but leaves the vehicle configuration space up to the intuition of its users.
+
+    The configuration considered in the \ddt\ is the conventional high-wing strut-braced configuration depicted in Figure \ref{fig:configuration}. Control is provided through four all-moving actuated surfaces: a horizontal stabilizer, a vertical stabilizer, and two "tailerons". These tailerons serve two purposes:
+    \begin{enumerate}
+        \item First, in a static flight condition, they relieve torsional moment in the wing due to the airfoil's pitching moment. This allows reduced torsional stiffness in the spar, reducing mass. Alternatively, this ability to alleviate moment could be used to select an airfoil with a more negative pitching moment; relaxing the moment constraint during airfoil design allows for increased sectional L/D.
+        \item Secondly, they allow roll control of the airplane. Hand-calculations indicate that traditional ailerons are not an attractive option for roll control, as the required spar torsional stiffness to prevent control reversal is prohibitively heavy. Instead, tailerons are designed to deliberately twist the wing, changing the lift distribution on the wing and creating a rolling moment. In other words, by putting taileron control surfaces on booms, the control reversal limiting case becomes irrelevant; one always operates in a state of control reversal.
+    \end{enumerate}
+
+    \begin{figure}[H]
+        \centering
+        \includegraphics[width=\textwidth]{figures/DawnIllustration.png}
+        \caption{Baseline configuration assumed in the \ddt. (Rep. with permission from Mark Drela.)}
+        \label{fig:configuration}
+    \end{figure}
+
+    Configuration trade studies were performed between single-boom and multi-boom configurations. At the relevant scales, both configurations were found to perform competitively after quantitatively analyzing dynamic aerostructural effects, battery considerations (such as thermal management at altitude), and payload flexibility. This is in accordance with results found by Colas et al. \cite{fbhale1}. Therefore, a single-boom design was selected, as depicted in Figure \ref{fig:configuration}.
+
+    \subsubsection{Sizing}
+
+    The optimization problem that is solved by the \ddt\ consists of several thousand variables. Approximately 150 of these variables are sizing variables that map directly to the physical vehicle design. These variables primarily relate to outer mold line geometry, propulsion sizing, structural sizing, and power system sizing. Examples include:
+
+    \begin{itemize}
+        \item Wing geometry (parameterized as a two-section unswept wing)
+        \item Horizontal stabilizer, vertical stabilizer, and taileron geometry (each parameterized as a one-section rectangular wing)
+        \item Boom length
+        \item Propeller diameter
+        \item Battery capacity
+        \item Solar panel area
+        \item Motor maximum rated power
+        \item Wing internal structure (spar diameter profile, rib count, etc.)
+        \item Fuselage shape
+    \end{itemize}
+
+    \subsection{Mission Design}
+
+    In addition to performing vehicle design, one must also consider mission design. While high-level mission requirements (e.g. average cruise altitude) are often given, we demonstrate in the following section that the specific trajectory taken by a solar airplane throughout a day can have a large impact on mission feasibility. Furthermore, a solar aircraft must be able to ascend to cruise altitude, and the optimal trajectory of this ascent operation is not obvious from first principles. Therefore, it becomes important to model the aircraft's trajectory as part of the design problem.
+
+    \subsubsection{Energy Closure and Stationkeeping}
+
+    A key challenge unique to long-endurance solar aircraft is the problem of \textit{diurnal energy closure}: a solar aircraft must be capable of ending any given 24-hour period within the mission space with more potential energy (in the combined forms of battery charge state and altitude) than it started with. For a robust design, some amount of \textit{energy margin} must be enforced.
+
+    While sufficient energy generation is key to ensuring energy closure, energy storage also constrains the design space. The aircraft's battery must be sized so that its charge state remains within allowable bounds - given the time-varying solar insolation and unsteady power draws (from the propulsion system, payload, and avionics), evaluating the feasibility of this constraint for a given solution becomes nontrivial. Furthermore, one would expect that a system with cyclic power injections might be optimally operated using a cyclic strategy; indeed, under certain model assumptions, unsteady flight paths that exploit the dynamics of the problem are found to enable smaller-wingspan aircraft. One example strategy of this type is "altitude cycling", which involves diurnally varying altitude in order to store some energy using gravity rather than batteries.
+
+    Finally, the aircraft must also be capable of stationkeeping against high winds, as stratospheric wind speeds can be significant and sustained. This problem is exacerbated by the observation that the aforementioned energy closure problem naturally drives the optimal design to low wing loadings (as energy generation and wing area are inherently coupled for a solar aircraft), and therefore, low airspeeds. This stationkeeping constraint can be quantitatively implemented in two ways:
+    \begin{enumerate}
+        \item Most straightforwardly, one can enforce the constraint $V_{\text{TAS}} \cdot \cos{\gamma} \geq V_{\text{wind, worst}}$ at all points in the flight path. (This implicitly assumes that the aircraft always flies into the wind on the worst-wind day and that stratospheric winds are purely horizontal.)
+        \item One can enforce a relaxed version of the previous constraint, where \textit{net ground-track distance} over the course of a 24-hour window must be positive, i.e. $\int_{\text{day}} (V_{\text{TAS}} \cdot \cos{\gamma} - V_{\text{wind, worst}})\ dt \geq 0$.
+    \end{enumerate}
+
+    In our design code, we choose to implement the latter constraint. Because of this, diurnal "airspeed cycling" (where the aircraft flies faster during the day and slower at night, thereby reducing energy storage requirements) is another potentially optimal strategy in certain high-wind conditions.
+
+    \subsubsection{The Optimal Control Subproblem}
+
+    For all the reasons previously described, any design tool that aims to accurately capture the performance of a solar aircraft must be unsteady in nature. These considerations effectively form an optimal control subproblem that is directly coupled to the more traditional aircraft design optimization problem; in lay terms, it matters not only \textit{what} you fly, but also \textit{how} and \textit{where} you fly.
+
+    In recognition of this optimal control subproblem, the \ddt\ evaluates and optimizes aircraft performance over a 24-hour periodic window with time $t=0$ at local solar noon. Flight dynamics and time-dependent energy relations are implemented using a direct collocation transcription method using trapezoidal quadrature, a technique that is described elegantly by \cite{Kelly}. A convergence study was performed for the solar aircraft design problem in order to determine an appropriate temporal resolution. Testing indicated that grid-independence was reliably achieved at a temporal resolution of 150 collocation points uniformly spaced over a 24-hour interval; therefore, this was the discretization resolution used in all further studies.
+
+    \subsubsection{State Variables and Flight Dynamics}
+
+    To simplify the dynamics, the optimal control problem is reduced to a 2-dimensional problem with the axes of range (aligned with headwind) and altitude; cross-track distance is neglected. At any given point during the 24-hour optimization window, the aircraft can be described by the following state vector:
+
+    \begin{itemize}
+        \item $x$, downrange distance relative to its position at the beginning of the 24-hour window
+        \item $y$, altitude
+        \item $V_\text{TAS}$, true airspeed
+        \item $\gamma$, flight path angle
+        \item $\alpha$, angle of attack
+        \item Battery state of charge
+    \end{itemize}
+
+    A notable absence from this list of unsteady variables is $m_\text{total}$, the total aircraft mass, as no fuel burn occurs. Time-dependent control inputs are also defined:
+    \begin{itemize}
+        \item Thrust force (via throttle setting)
+        \item Control surface deflections (constrained to produce a zero-net-moment state)
+    \end{itemize}
+
+    This simplification of the aircraft state in the high-level optimization code implies that some flight dynamics modes are not directly analyzed; this has several implications:
+    \begin{enumerate}
+        \item Firstly, all lateral dynamic modes and aerostructural modes (flutter, divergence) are not directly analyzed in the \ddt. The size of the vertical stabilizer is constrained using recommended tail volume coefficients established by Drela \cite{DrelaTailSizing}: $0.02 \leq V_v \leq 0.05$. Steady turn performance, flutter \& divergence margin, and lateral modes assessed a posteriori using the aerostructural analysis code ASWing \cite{aswing}.
+
+        \item While the phugoid mode is captured, the short-period longitudinal mode is necessarily neglected as angular rates are not tracked. An implicit assumption here is that these two modes are sufficiently spectrally-separated for this simplification to be valid. Static stability is verified by calculating an estimated static margin using a workbook-style buildup of the location of the aircraft's neutral point; this estimated static margin is constrained to be $x_{sm} = 0.20\bar{c}$.
+
+    \end{enumerate}
+
+    \subsection{Optimization Methods}
+    The considerations above result in a coupled optimization problem that typically consists of approximately 2,500 variables and 4,000 constraints. The underlying physics of these constraints are generally nonlinear, nonconvex, and non-geometric-program-compatible\footnote{This approach to aircraft design optimization is detailed in \cite{Hoburg}.}.
+
+    Careful design of an optimization framework is required in order to make this problem reasonably tractable. Using the \asb\ framework, both the vehicle design and mission design are solved simultaneously using a simultaneous-analysis-and-design (SAND) optimization architecture pioneered by Haftka \cite{Haftka}. This SAND architecture is illustrated in Figure \ref{fig:xdsm} using the Extended Design Structure Matrix (XDSM) convention established by Lambe and Martins \cite{Lambe2012}. In addition, all discipline models are written to be end-to-end automatic-differentiable, allowing fast and accurate gradient computation that accelerates the optimization process by several orders of magnitude compared to a traditional black-box optimization approach. Within AeroSandbox, optimization is performed using the open-source interior-point solver IPOPT via a Python interface furnished by CasADi \cite{Andersson2019}. More details are found in \cite{aerosandbox}.
+
+    \begin{figure}[H]
+        \begin{center}
+            \scalebox{0.65}{\input{figures/xdsm.tikz}}
+        \end{center}
+        \caption{\ddt\ optimization architecture in Extended Design Structure Matrix (XDSM) format \cite{Lambe2012}.}
+        \label{fig:xdsm}
+    \end{figure}
+
+    \subsection{Discipline Models and Assumptions}
+
+    The results of any optimization problem are only as accurate as the models and assumptions that were used to formulate it. Here, we describe several key models that are used in the present code; the remainder are detailed at the hyperlink in the Appendix.
+
+%    The \ddt\ aims to find the minimum-wingspan aircraft capable of satisfying mission requirements on the worst day specified. For the baseline mission, this worst-day is taken to be August 31 solar conditions with 99th-percentile steady wind conditions\footnote{For this mission, the wind constraint actually turns out to not be tight, as the wingspan minimization drives up the wing loading sufficiently to keep the cruise speed above the low wind speeds typical of summertime over the CONUS.}. %The aircraft must also ascend during the day preceding the worst day.
+%    On this worst day, a latitude of 25N is assumed, which corresponds to the southernmost extent of the continental United States.
+
+    \subsubsection{Margins}
+
+    To ensure a robust design is found even in the presence of model uncertainty and manufacturing uncertainty, we add required margin in key equations for design closure. We add margin on structural models by multiplying structure weight by a factor of 1.25 over original estimates. We also add margin on energy closure by decreasing solar power generation to 95\% of the true estimated value.
+
+    \subsubsection{Atmosphere Model, Tropopause Altitude, and Winds}
+
+    General atmospheric data (pressure and temperature) was based on the 1976 U.S. Standard Atmosphere (COESA) model \cite{coesa}. To preserve differentiability, this COESA data was interpolated and smoothed in accordance with procedures described in the \asb\ literature \cite{aerosandbox}. In the valid altitude range of the COESA model, temperature and pressure outputs of this smoothed model differ from those of the original COESA model by less than 2\% everywhere.
+
+    Given the significantly higher occurrence of strong gusts and cloud cover within the troposphere, the baseline mission requires that the solar aircraft fly within the stratosphere. However, it is not immediately obvious how far within the stratosphere is sufficient to ensure the safety of the aircraft from unsteady winds that could aggravate an unsteady mode, or prevent cloud cover from rendering power generation impossible via the solar cells. To model seasonal and latitude effects on stratosphere height, an analysis of the weather balloon data found in the Integrated Global Radiosonde Archive (IGRA) was conducted on data dating back to the 1950s at over 2,700 weather stations \cite{IGRA}. According to the literature \cite{lapserate}, the altitude of transition between the troposphere and the stratosphere corresponds to the lowest altitude at which the lapse rate is less than or equal to 2 degrees Celsius per kilometer. Using the month and the location of the weather station, an interpolated model of the stratosphere height was developed relative to latitude and month of the year. An additional margin of one kilometer was added to model outputs to ensure any wayward tropopause gusts do not threaten the aircraft in cruise. The following chart demonstrates the output of this model (Figure \ref{fig:strat}).
+
+    \begin{figure}[H]
+        \centering
+        \includegraphics[width=14cm]{figures/strat_height.jpg}
+        \caption{Outputs of tropopause altitude model (developed using IGRA data).}
+        \label{fig:strat}
+    \end{figure}
+
+    A statistical model for steady winds was created using data from the ERA5 reanalysis dataset compiled by the European Center for Medium-Range Weather Forecasting (ECMWF). Data is sampled at 1 degree latitude and longitude grid increments, throughout the entire globe. Samples are taken from 2009 to 2019, sampling at 4 equally spaced temporal intervals throughout the day to quantify the diurnal effects of wind. This sampling is taken at 5 day increments throughout the year to distinguish the seasonal effects on wind speed, which prove to be significant.
+
+    At the altitudes of interest (from the top of the atmospheric boundary layer up to 40 km), statistical measures of wind speed such as 95th-percentile speeds were calculated via the Python code at the following source \cite{winds}. The wind data of these statistical quantities were plotted against the following four variables: latitude, longitude, hour of day, and altitude. From this study, the variation in wind speed was assumed to be negligible against longitude and hour of day, while latitude, altitude, and time of year all had effects that were strong and nonlinear. Data was fit for the 95th-percentile of wind speed over the globe for each month to capture the strong seasonality effect. This seasonal effect has a driving effect on sizing in certain cases via the station-keeping constraint discussed previously.
+
+    Assuming the aircraft cruises at the height outputted by the stratosphere height model discussed in the previous section, the wind speeds at this altitude become the critical speed the aircraft must outpace (net over a 24 hour period). The following chart demonstrates the wind speed at this critical altitude as calculated by the stratosphere height model and the global wind model (Figure \ref{fig:winds_at_cruise}).
+    \begin{figure}[H]
+        \centering
+        \includegraphics[width=14cm]{figures/winds_at_cruise.png}
+        \caption{Steady wind model function outputs at the minimum cruise altitude.}
+        \label{fig:winds_at_cruise}
+    \end{figure}
+
+    % A statistical model for steady winds was created using data from the ERA5 reanalysis dataset compiled by the European Center for Medium-Range Weather Forecasting (ECMWF). Data was collated for the years 1979-2019 for July and August winds over the CONUS. It was identified early on that many samples were redundant, as they had low spatio-temporal separation from other samples and thus had high correlation to existing data. To reduce working dataset size, these samples were eliminated, leaving only data from the 1st and 15th of each month\footnote{Burton demonstrates that high-altitude steady winds typically lose autocorrelation after approximately two weeks \cite{burton_2017}.}. On these days, wind speed data was sampled at 1-hour increments in order to assess possible diurnal variations in wind speed.
+
+    % At the altitudes of interest (from the top of the atmospheric boundary layer up to 40 km), statistical measures of wind speed such as 99th-percentile speeds were calculated. Variations of these statistical quantities were visually assessed over four variables via cross-plots: latitude, longitude, hour of day, and altitude. Of these variables, negligible variation in wind speed was attributable to longitude and hour of day, while latitude and altitude both had effects that were strong and nonlinear.
+
+    % Data was fit for statistical measures of wind speed over the CONUS during the months of July and August. For more information, see \href{https://github.com/dsharpe/AeroSandbox/blob/master/aerosandbox/library/winds.py}{code} and \href{https://github.com/dsharpe/Wind_Analysis/tree/master/CONUS}{study}.
+
+    \subsubsection{3D Aerodynamics}
+    Three approaches for 3D aerodynamics to be used in the MDO code were implemented and tested:
+
+    \begin{enumerate}
+        \item A traditional workbook-style buildup of lift, drag, and moment based on analytical expressions, similar to one found in \cite{raymer}. (\href{https://github.com/peterdsharpe/AeroSandbox/blob/master/aerosandbox/aerodynamics/aero_3D/aero_buildup.py}{code})
+
+        \item A fully nonlinear lifting-line model that couples in profile drag, viscous decambering, local stall, etc. (\href{https://github.com/peterdsharpe/AeroSandbox/blob/master/aerosandbox/aerodynamics/aero_3D/lifting_line.py}{code}). 2D airfoil properties are nonlinear interpolated models based on synthetic data from XFoil.
+
+        \item A (linear) vortex-lattice-method solver (\href{https://github.com/peterdsharpe/AeroSandbox/blob/master/aerosandbox/aerodynamics/aero_3D/vortex_lattice_method.py}{code}).
+
+    \end{enumerate}
+
+    All three methods are written from scratch in Python. Upon running the design code using different 3D aerodynamics methods, one finds that optimization solutions typically differ by only a few percent at most; this implies that these models cross-validate themselves quite well. This is unsurprising, as a solar airplane represents a near-ideal case for typical theoretical assumptions for 3D aerodynamics: aspect ratios are high and lifting surfaces are well-separated. Because of this, the first approach (workbook-style) was used as it is the simplest and fastest of the three.
+
+    \subsubsection{2D Aerodynamics (Slide 24)}
+
+    A series of wing airfoils known as the \textit{HALE\_03} series was created and fixed prior to the optimization run. Due to the specific attributes to flight at these high altitudes and low-speeds, the airfoil design had unique considerations to take into account. Specifically, the low Reynolds numbers of this aircraft during flight make the desired airfoils similar to those designed by Human Powered Aircraft (HPA) programs. To develop the \textit{HALE\_03} airfoils, inspiration was drawn from significant HPA programs developed by MIT including Daedalus and the Light Eagle, as the Reynolds number regimes are comparable \cite{airfoils}.
+
+    In order to integrate the aerodynamic performance of this airfoil into the \ddt, polar data was fit across the $\alpha$-$\mathrm{Re}$ space using data from XFoil and fitting it to an interpolated function.
+
+    \subsubsection{Structures \& Weights (Slide 25)}
+
+    Weights are built up using a collection of several dozen different models which cannot all be described here to preserve brevity. However, we do briefly mention one key mass model, which is the wing weight model.
+
+    Wing secondary weight is empirical based on figures from the MIT Daedalus project \cite{Cruz1989a}. These figures are then multiplied by a factor of 1.3 to reflect the fragility and operational difficulties of Daedalus' exceptionally lightweight secondary structure \footnote{This factor was chosen based on personal correspondence with Dr. Mark Drela.}.
+
+    Primary weight is based on a classical Euler-Bernoulli beam model that considers both bending and torsion. This model is available \href{https://github.com/peterdsharpe/AeroSandbox/blob/master/aerosandbox/structures/beams.py}{here}. Spar material is assumed to be carbon fiber, and the geometry is assumed to be a tube (for ease of manufacturing and superior torsional properties\footnote{Torsion sizes the spar primarily, not bending.}). Loads are assumed to be static for the purposes of overall optimization, and we notionally assume a design load factor of 3 in an effort to mimic effects of dynamic loading. All designs are checked \textit{a posteriori} via ASWing to ensure dynamic loading performance is sufficient.
+
+    \subsubsection{Battery}
+    The batteries modelled in the \ddt\ are assumed to have a specific energy of 450 watt-hours per kilogram as measured at the cell level. This figure was selected as it is within the specific energy range published by Amprius for their silicon nanowire anode lithium-ion batteries \cite{Amprius}. These cells are utilized in the Airbus Zephyr program, therefore they are a proven technology at altitude \cite{Amprius-Airbus}. However, this assumed battery energy density is at the very high end of the currently available technology, and there is considerable risk this technology would be both reliable for the required number of cycles and procured at the necessary scale. Furthermore, they are extremely expensive. Therefore additional battery energy densities are tested as well, to determine the sizing effect should less energy dense batteries be utilized in the vehicle.
+
+    Additionally, the allowable battery depth of discharge is restricted to 85 percent. This figure is on the more optimistic side, but still within the range of typical values seen within the literature. This figure selected, as opposed to a more conventional 80 percent, as the battery power demands for this HALE aircraft are much less aggressive than those for other electric aircraft. In particular, many electric aircraft must carry reserve power, as their possible failure events typically occur towards the end of a mission where limited glide range leaves few options, however the impressive aerodynamic performance of this aircraft leaves considerable time and range to safely recover the vehicle. Furthermore, many electric aircraft are designed for VTOL or STOL operations. In these applications, large power draws are anticipated near landing, when batteries are close to fully drained and at their most vulnerable state for failure during high power draws.
+
+    A battery cell packing factor of 89 percent is assumed. This reflects the fraction of the battery pack by mass, that consists of raw cells relative to the total weight including, cells, wiring, thermal and battery management systems. This figure, although at the high end of the range in the literature, is fairly typical of solar aircraft, according to correspondence with Ed Lovelace\footnote{Power systems engineer for Aurora's Odysseus solar aircraft.}. Given this aircraft is unmanned, the packing factor can be much more aggressive than a manned aircraft where human safety is on the line. Lastly, a battery charging and discharging efficiency of 97.5 percent is modeled, corresponding to a round-trip efficiency of approximately 95 percent.
+
+    \subsubsection{Solar Cells}
+
+    For the solar panels, a 25 percent realizable efficiency is assumed. At the cell level, a 28.5 percent efficiency and a 0.255 kilograms per meters squared area density is assumed, corresponding to the Microlink Devices triple-junction thin film gallium-arsenic cells \cite{Microlink}. This is cell level efficiency is knocked down to by 10 percent to model the realizable panel level efficiency due to a plethora of effects including wing curvature, voltage mismatch, temperature factors, spectral losses (due to different solar spectrum at altitude), and multi-junction effects. Additionally, within the model the area density of the cells are padded with a ten percent margin, to account for the added weight of wiring and any additional mounting weight.
+
+    These high-performance solar cells are extremely expensive, to the extent that they might be prohibitive to the development of this solar-electric vehicle. Furthermore, very few manufacturers in the market seem to be developing this level of highly-efficient solar cells, which could pose a significant programmatic risk given the large quantity of cells required for an aircraft. Several alternatives are tested as well via the \ddt, to assess the impact of less expensive and efficient alternatives that are likely easier to source at scale. Two alternative cell technologies are SunPower Maxeon copper cells and Ascent Solar copper indium gallium selenide (CIGS) flexible cells. The identical area density and efficiency offsets are modelled for all three technologies. The following table summarizes the modelled solar cell values (Table \ref{tab:solar_cells})\footnote{Ascent Solar efficiency and area density from personal correspondence with Joe Kigin
+    SVP of Ascent Solar}.
+    \begin{table}[H]
+        \centering
+        \begin{tabular}{p{1in}|p{1in}|p{1in}|p{1in}}
+            \textbf{Solar Cell Manufacturer} & \textbf{Cell Level Efficiency} & \textbf{Area
+            Density} & \textbf{Assumed Usable Wing Area} \\
+            \hline
+            Microlink    & 28.5\% & 0.255 \si{kg/m^2} & 80\% \\
+            SunPower     & 24.3\% & 0.425 \si{kg/m^2} & 60\% \\
+            Ascent Solar & 14\%   & 0.300 \si{kg/m^2} & 80\% \\
+        \end{tabular}
+        \caption{Various solar cell technologies and their corresponding modeled values \cite{Sunpower}\cite{Microlink}}
+        \label{tab:solar_cells}
+    \end{table}
+
+    One challenge of the Sunpower cells is this cell is not thin film and flexible like the other two technologies. This makes utilizing the full wing area impossible, given the curvature of the wing, and mounting the cells much more challenging since the cells fracture if bent too far. Therefore the usable wing area fraction is adjusted in the case of the Sunpower cells, from 80 to 60 percent, as seen in Table \ref{tab:solar_cells}. However these cells are still of interest given they are roughly an order of magnitude less expensive than Microlink.
+
+    \subsubsection{Propeller}
+
+    The propeller model is based on dynamic disc actuator theory with viscous correction factors calibrated to data from QProp. Specifically, a coefficient of performance of 90\% is assumed.
+
+    \subsection{Baseline Mission Definition}
+    \label{section:baseline_mission_definition}
+    Because the mission space of solar aircraft is so high-dimensional, it becomes necessary to project this feasible mission space down to a representative \textit{baseline mission} in order to produce meaningful visualizations of the space. Requirements for this baseline mission were formulated after reviewing the requirements of several proposed climate science missions. The scope and scientific value of these missions is detailed in Section \ref{section:missions-of-interest}; here, we present the key engineering requirements that were loosely based on these missions:
+
+    \begin{example}
+        \noindent
+        \textbf{Baseline Mission:}
+
+        \begin{itemize}
+            \item The aircraft shall cruise at a pressure altitude greater than or equal to the tropopause altitude; this is approximately 18 km at the equator and 12 km at the poles.
+            \item The aircraft shall be capable of continuous flight during the \textit{date-seasonality envelope}, a box constraint defined as the combination of:
+            \begin{itemize}
+                \item Any six-week operating period that is a contiguous subset of the dates June 1 through August 31.
+                \item Any location over the continental United States (CONUS).
+            \end{itemize}
+            \item The aircraft shall carry a 30 kg scientific payload that consumes 500 W of power while the sun is above the local horizon and 150 W of power otherwise.
+            \item The aircraft shall be capable of stationkeeping over the duration of any day in the mission space in the presence of a headwind at the 95th-percentile of wind speeds.
+        \end{itemize}
+    \end{example}
+
+    All subsequent figures and tables refer to the engineering requirements of this baseline mission, unless otherwise marked.
+
+    \subsection{Point Design for Baseline Mission}
+    \label{section:point_design}
+    To provide a point of comparison for further mission space analysis, we first illustrate a representative optimized point design. This point design is found using the \ddt\ and corresponds to the minimum-wingspan aircraft design subject to feasibility of the baseline mission defined in Section \ref{section:baseline_mission_definition}. Key specifications of this optimized design are presented in Table \ref{tab:baseline_design}.
+
+    \begin{table}[H]
+        \centering
+        \begin{tabular}{p{2in}|p{2in}}
+            \textbf{Figure of Merit}    & \textbf{Optimum Value}                                \\
+            \hline
+            TOGW                        & 375 kg                                                \\
+            Wingspan                    & 39.9 m                                                \\
+            Wing aspect ratio           & 23.4                                                  \\
+            Wing area                   & 67.9 m$^2$                                            \\
+            Wing loading                & 54.2 Pa                                               \\
+            Mean airspeed               & 30.4 m/s                                              \\
+            Altitude                    & 18.7 km nighttime and peaking at 19.7 km on Aug. 31st \\
+            Total power output          & Peak battery draw: 5068.8 W                           \\
+            Battery capacity            & 75.4 kWh                                              \\
+            Mean Wing Reynolds number   & 382,550 ($c_\text{ref}=\bar{c}$)                      \\
+            Wing lift coefficient range & 1.106 to 1.113                                        \\
+            L/D Ratio                   & 30.8                                                  \\
+            Wing solar area fraction    & 80\% (tight constraint)                               \\
+            Propeller arrangement       & 4x 1m dia. 2-bladed propellers
+        \end{tabular}
+        \caption{Key specifications for the point design corresponding to the the baseline mission.}
+        \label{tab:baseline_design}
+    \end{table}
+
+    The mass budget corresponding to this design is presented in Figure \ref{fig:mass_budget} and provides further intuitive understanding of the key drivers for feasibility of solar aircraft. An immediate observation is that the heaviest single component on the aircraft is the battery pack; clearly, the specific energy of the battery pack is a key driver.
+
+    \begin{figure}[H]
+        \centering
+        \includegraphics[width=\textwidth]{figures/Mass_breakdown_baseline.png}
+        \caption{Mass budget for the point design corresponding to the the baseline mission.}
+        \label{fig:mass_budget}
+    \end{figure}
+
+    These observations can be quantified by evaluating the first-order sensitivities of this point design. Specifically, we evaluate the total derivative of performance metrics (wingspan, TOGW) with respect to various mission parameters. A subset of these sensitivities is presented in Table \ref{tab:sensitivities}.
+
+    \begin{table}[H]
+        \centering
+        \begin{tabular}{l|ll}
+            \textbf{Figure of Merit}        & \textbf{Sensitivity of Wingspan} & \textbf{Sensitivity of TOGW} \\
+            \hline
+            Any added mass                  & 0.22 m/kg                        & 4.17 kg/kg                   \\
+            Any added power draw            & 0.010 m/W                        & 0.185 kg/W                   \\
+            Any added drag                  & 0.479 m/N                        & 7.497 kg/N                   \\
+            Battery spec. energy            & -0.090 m/(Wh/kg)                 & -0.960 kg/(Wh/kg)            \\
+            Battery packing fraction        & -0.461 m/(\%)                    & -4.847 kg/(\%)               \\
+            Solar cell efficiency           & -0.464 m/(\%)                    & -0.865 kg/(\%)               \\
+            Solar cell area density         & 12.41 m/(kg/m$^2$)               & 148.88 kg/(kg/m$^2$)         \\
+            Solar cell usable wing fraction & -10.60 m/(\%)                    & 80.85 kg/(\%)                \\
+            Propeller efficiency            & -0.613 m/(\%)                    & -4.72 kg/(\%)                \\
+            Motor efficiency                & -0.586 m/(\%)                    & -4.75 kg/(\%)                \\
+            Minimum cruise altitude         & 5.100 m/km                       & 46.210 kg/km                 \\
+
+        \end{tabular}
+        \caption{First-order sensitivities for the point design corresponding to the the baseline mission.}
+        \label{tab:sensitivities}
+    \end{table}
+
+
+    \section{Mapping of the Feasible Mission Space}
+
+    With a baseline mission and associated point design defined, it now becomes prudent to map out the feasible mission space of a high-altitude long-endurance solar aircraft. By outlining the extent of the mission envelope, we can quickly identify climate science missions that may be well-suited to remote observation or in-situ atmospheric sampling via solar aircraft.
+
+    For the purposes of climate science research, perhaps the most important parameters in the mission space are \textit{where} and \textit{when} long-endurance flight is possible. In support of this, two carpet plot studies were performed across the latitude-seasonality space. In both studies, a limiting assumption was made that mission feasibility is not a function of longitude. This is justified by the fact that solar insolation is not a function of longitude. However, wind speeds are a function of longitude; variations in this were deemed negligible as the station-keeping constraint was not tight in the baseline design case. Future research extending this mission feasibility mapping to use global wind data may further limit mission feasibility, especially in certain regions (e.g. wintertime near the polar vortex).
+
+    \subsection{Carpet Plot 1: Mission Space for a Rubber Airplane}
+
+    The first of these two carpet plot studies answered the question "What is the minimum-span solar aircraft required for sustained flight as a function of latitude and seasonality?" Results of this study are presented in Figure \ref{fig:required_span}. As a point of comparison, the mission space corresponding to the baseline mission described in Section \ref{section:baseline_mission_definition} is shown with a dashed black line. The sizing case for this baseline mission, which corresponds to the most-infeasible point (Aug. 31, 25N) within its mission space, is marked with a black dot. In Figure \ref{fig:required_span}, all airplanes with a wingspan in excess of 50 m are also deemed infeasible, as design and development challenges increase precipitously near this scale.
+
+    \begin{figure}[H]
+        \centering
+        \includegraphics[width=\textwidth,trim=0cm 0cm 0cm 1cm, clip=true]{figures/30kg_payloadw_mission.png}
+        \caption{Feasible mission space: minimum wingspan required for energy closure for a given date and location}
+        \label{fig:required_span}
+    \end{figure}
+
+    An interesting observation is that the location of this most-infeasible point within the baseline mission space is not necessarily always the point farthest from the equator. This most-extreme latitude would seem like the obvious sizing case for a solar aircraft; however, it turns out that this is not typically the case given two primary sizing effects. First, the effect of the stratosphere model setting the minimum cruise altitude. In extreme latitude regions with low tropopause height, the aircraft can fly in at lower altitudes with higher air density reducing the wingspan. Second, pertains to the effect of the long days during summer at extreme latitudes. While it is true that larger latitudes in the Northern and Southern hemisphere do indeed result in lower sun elevation angles (resulting in reduced solar power), they also yield more hours of sunlight per day\footnote{At the poles, this culminates in the midnight sun effect, where the sun remains above the horizon for months at a time}. Because solar panels are relatively lightweight while batteries are heavy and because the tropopause height is low at high latitudes, we find that lower latitudes typically size the solar aircraft.
+
+    More broadly, expected trends are seen during the carpet plot study shown in Figure \ref{fig:required_span}. During periods of high solar insolation (e.g. summer solstice in the Northern hemisphere), only a very small aircraft is required in order to complete the mission. In the extreme case, wingspans smaller than 20 meters are possible. However, during periods of low solar insolation, flight becomes impossible at any wingspan; Figure \ref{fig:required_span} shows that occurs during winter at latitudes above 20 degrees latitude both North and South. For an aircraft to be capable of perennial flight, the span would have to be greater than 42 meters.
+
+    One non-intuitive feature of this plot is the asymmetry at low latitudes between January through March and November through December. It appears from this mission space plot that latitudes from 40 to 80 South during the month of November is a challenging point for vehicle convergence. We can trace this effect to the 95th percentile winds, as seen in Figure \ref{fig:winds_at_cruise}. The local winds speeds in this region are about 50-60 meters per second, above any other wind speed at the minimum cruise altitude within a region that is feasible given the available solar flux. Although the optimizer can and does select at times to fly above the minimum cruise altitude to seek lower steady winds, this local effect persists at higher altitudes as well. Therefore, we see in this plot and in the remainder of these carpet plots explored within the following sections, that the optimizer reports infeasibility within November from approximately 40 to 80 South latitudes.
+
+    A final interesting effect that is seen in Figure \ref{fig:winds_at_cruise} is that \textit{infeasibility due to inability to close the energy cycle} and \textit{infeasibility due to inability to stationkeep} (due to high winds) look markedly different. Infeasibility due to inability to close the energy cycle (e.g near June 1 at 20S latitude): here, the gradient of wingspan with respect to latitude is fairly shallow: a larger airplane can easily mitigate this energy closure problem. This makes sense: to first-order, increasing wingspan results in a heavier aircraft with a lower payload mass fraction, so more weight can be allocated to energy production and storage. On the other hand, infeasibility due to excessive wind (e.g. near Dec. 1 at 70S latitude) forms an exceptionally sharp gradient of wind speed with respect to seasonality. In other words, an inability to stationkeep is generally not mitigated by simply increasing wingspan: beyond a certain point, increased airspeed is essentially infeasible at any scale.
+
+    \subsection{Carpet Plot 2: Capability Space for a Frozen Airplane}
+    The second of these two studies turned the question around: "Given a frozen aircraft design, how much payload can be carried as a function of latitude and seasonality?" The frozen aircraft design used in this study was the point design presented in Section \ref{section:point_design}. Results of this study are presented in Figure \ref{fig:payload_capability}.
+
+    \begin{figure}[H]
+        \centering
+        \includegraphics[width=\textwidth, trim=0cm 0cm 0cm 3cm, clip=true]{figures/max_payload.png}
+        \caption{Feasible mission space: payload capability for an aircraft with a fixed 34 meter wingspan for a given date and location.}
+        \label{fig:payload_capability}
+    \end{figure}
+
+    From this chart we can observe the only aircraft at this span capable of year-round flight would have near-zero payload mass, and the next gradient step of 20 kilograms is beyond 20 degrees North/South. This large region of no payload capacity demonstrates the difficulty of designing a HALE aircraft capable of conducting climate observations, given that almost no mission between 20 degrees North and 20 degrees South would be feasible at this wingspan. However, the gradient of improvement is dramatic. For some of the summer season, a HALE aircraft could carry a payload of 200 kilograms in the geographic region above 60 North and South, enabling a wide range of potential instrumentation in the arctic region.
+
+
+    \section{Design Space Exploration}
+    Three main drivers of vehicle sizing have been explored. First, the specifications of the payload, particularly mass and power required to operate the instrumentation to collect the critical climate science observations. Then, the effects of the minimum cruise altitude and the impact of altitude cycling are illustrated. Additionally, the technology assumptions that dictate the energy closure problem, including battery energy density and solar cell efficiency, are explored via different technology assumptions. One critical observation is clear from this analysis, the current technologies are sufficiently developed to have opened a considerable feasible space where the solar-electric stratospheric vehicle concept is uniquely equipped to enable month long missions. Furthermore, this flight envelope potentially enables many Earth observation missions, including the ice dynamics mission and the stratospheric chemistry mission previously discussed. As these technologies continue to improve in the coming years, the feasible space of solar aircraft is expected to expand, which will be explored using the optimization tool.
+
+    \subsection{The Sizing Effect of Instrumentation}
+    To this point the single point design and the feasible mission space sweeps have all been in reference to the stratospheric chemistry monitoring mission over the CONUS. This section aims to answer the critical question: how does the sizing and feasibility of the aircraft change in regards to different instrumentation? The second design case explored is that of the glacial ice dynamics mission, as this considerably lighter (5.15 kg) and lower power draw (100W continuously) serves as a useful comparison point against the original baseline mission discussed. Understanding the impact of instrumentation size is a useful tool as future missions are evaluated, as to illustrate to potential science partners the trade-off between instrument size and power against the potential risk of developing such an aircraft (modelled by proxy via the wingspan). Alternatively, the feasible mission space can be compared against the payload size and power, allowing scientist to evaluate where the most scientific value can be gained against the payload sizing.
+
+    \subsubsection{Payload Weight}
+    To explore the effect of a lighter payload, the feasible mission space was run with the same assumptions as the previous Figure \ref{fig:required_span}. As discussed in Section \ref{section:point_design}, any added kilogram of mass has the net effect of 0.22 meters of added wingspan, in the original design case and at the sizing case. The only change was reducing the payload mass from 30 kilograms to 10 kilograms, and the effect of this adjustment can be visualized in below (Figure \ref{fig:required_span_10kg}).
+
+    \begin{figure}[H]
+        \centering
+        \includegraphics[width=\textwidth,trim=0cm 0cm 0cm 1cm, clip=true]{figures/10kg_payload.png}
+        \caption{Feasible mission space: minimum wingspan required for energy closure for a given date and location with a 10 kilogram payload}
+        \label{fig:required_span_10kg}
+    \end{figure}
+
+    Comparing this plot against Figure \ref{fig:required_span}, several trends are illustrated. First, the general shape of the feasible space is largely similar, and closely matches the incoming solar insolation plot shape as well in Figure \ref{fig:solar}. Even with a lighter payload, flight during wintertime at latitudes above about 20 North/South are infeasible. Additionally, the wind effect during November in the 40 to 80 South latitude range persists. However, the wingspans have shrunk considerably throughout the design space; for the original mission the sizing case dropped from 40 meters to about 35 meters. The limit case of wingspans around 18 to 20 meters has grown considerably, while the nominal perennial aircraft with a 10 kilo payload has dropped from about 42 to 38 meters. For the subsequent studies of various effects on minimum span throughout the latitude time space, this payload of 10 kilograms is used given its increased feasibility.
+
+    \subsubsection{Payload Power Requirements}
+    In the original mission case for the stratospheric chemistry monitoring mission, the payload power requirements were modelled as 500 watts of continuous power during the day and 150 watts of continuous power at night. From the sensitivity study conducted at the sizing case in Section \ref{section:point_design}, it appears the sizing is less sensitive to increased power draw than it is to increased mass. To test this against the feasible space, a lower power case is studied, assuming a payload power of 100 W continuously both day and night. This case was selected as it matched the power requirements for the less mass and power intensive glacial ice dynamics mission. The chart Figure \ref{fig:required_span_100W} demonstrates this effect, although it decreases the required span somewhat, is not nearly as significant as changing the payload mass.
+
+    \begin{figure}[H]
+        \centering
+        \includegraphics[width=\textwidth,trim=0cm 0cm 0cm 1cm, clip=true]{figures/10kg_payload_continuous_power.png}
+        \caption{Feasible mission space: minimum wingspan required for energy closure for a given date and location with 100 W continuous power}
+        \label{fig:required_span_100W}
+    \end{figure}
+
+    The effect of lowering the payload power grows the feasible space of the low end limit case span below 20 meters, and decreases the span of the perennial aircraft slightly from 38 meters to 36 meters, comparing against the higher power 10 kilogram payload case.
+
+    \subsection{Sizing Effect of Cruise Altitude}
+    During the process of conducting this carpet plot study, a scientific partner indicated that increased science value might be realized at higher cruise altitudes. Upon further reviewing the sensitivity analysis of the point design, it was discovered that the minimum required cruise altitude (given as the troposphere height with an additional kilometer margin in the baseline mission) was an exceptionally sensitive parameter. Linearized about the point design case shown in Section \ref{section:point_design}, an increase in required cruise altitude of one kilometer corresponds to an increase in required wingspan of 5.1 m. This strong sensitivity is illustrated in Figure \ref{fig:altitude_sensitivity}. This provides further explanation for why high latitude missions appear to be much more feasible; the low tropopause height in these regions allows the aircraft to fly at the minimum cruise altitude at the far low end of the plotted range.
+
+    \begin{figure}[H]
+        \centering
+        \includegraphics[width=12cm]{figures/min_cruise_altitude.png}
+        \caption{Sensitivity of the point design's wing span to the minimum required cruise altitude.}
+        \label{fig:altitude_sensitivity}
+    \end{figure}
+
+    Additionally, results show that at at high latitudes (where the minimum cruise altitude is low due to a low tropopause), the optimizer chooses to implement considerable altitude cycling over the diurnal cycle. However, for certain Earth observation missions, especially those employing radar or LIDAR-based systems, the radar design range will limit the altitude where observations can be taken. Therefore, given the Arctic glacial ice dynamic mission employs a synthetic aperture radar to take measurements of ice velocity fields, the altitude cycling might need to be limited in range or discarded altogether. This is especially pertinent to explore for this mission case given it occurs within the region in which the optimizer appears to rely on altitude cycling considerably to shrink the wingspan. The following carpet plot demonstrates the effect of preventing the optimizer from cycling altitude during flight (Figure \ref{fig:required_span_no_cyc}).
+
+    \begin{figure}[H]
+        \centering
+        \includegraphics[width=\textwidth,trim=0cm 0cm 0cm 1cm, clip=true]{figures/10kg_payload_no_cycling.png}
+        \caption{Feasible mission space: minimum wingspan required for energy closure for a given date and location with no altitude cycling}
+        \label{fig:required_span_no_cyc}
+    \end{figure}
+
+    Observing this figure, one of the most notable features is the irregularities in the contours evident throughout. This is due to the model having much more trouble converging at single point designs throughout the space. From a cursory glace, the effect appears to be minimal, especially around 0 degrees North. However, the effect can be observed looking at the high latitudes, as expected based on the increased altitude cycling at these latitudes. Overall, this study demonstrates that if the instrumentation requires constant altitude flight, the sizing changes minimally at extreme latitudes and negligibly in mid latitudes.
+
+    \subsection{The Sizing Effect of Key Enabling Technologies}
+    As discussed in Section \ref{section:introduction}, the most critical technologies are the energy storage system (battery system), the energy generation system (solar panels) and the propulsion system (motors). The current state of these various technologies are discussed below, and the implications to the vehicle sizing have been outlined. Given these key technology areas are always improving, the \ddt\ is then utilized to present how the feasible space of a solar aircraft is anticipated to grow in the coming years.
+
+    \subsubsection{Solar Cell Technologies}
+    The total power input into the system is set by the solar flux and the solar cell efficiencies, which are currently reaching values as high as 30 percent, assuming thin film gallium arsenic multi-junction cells \cite{NREL}. This parameter has been shown in Section \ref{section:point_design} and further sizing studies to be the primary sizing effect relating to the solar cells. The sensitivity of the baseline case to the panel level solar cell efficiency is plotted in Figure \ref{fig:solar_sensitivity}. Furthermore, the sensitivity study shows that other parameters of the solar cells have significant sizing effects as well, including solar panel area (which is some fraction of the total wing area) and solar cell area density. As it is currently assumed that solar panels will be only mounted to the wing surface and the current models show the power-in requirement can size the wing, it is critical to utilize as much of the wing area as possible. Exploring various solar cell technologies, thin film cells have been identified as the most ideal as they are lightweight and highly flexible, making it possible to cover almost the entire surface of the wing surface, while the rigid crystalline cells are only able to cover 60 percent or so of the total wing surface. The most efficient and lightweight cells on the market that meet all of our mission needs appear to be multi-junction gallium-arsenic thin film cells, which we model as the Microlink solar cells in Table \ref{tab:solar_cells}.
+
+    \begin{figure}[!htb]
+        \centering
+        \includegraphics[width=0.7\textwidth]{figures/solar_eff.png}
+        \caption{Influence of panel-level solar cell efficiency on aircraft size, subject to baseline mission feasibility.}
+        \label{fig:solar_sensitivity}
+    \end{figure}
+
+    However, this high performance solar cell technology is extremely expensive and only produced by a small handful of solar cell manufacturers. To visualize the effect of switching to cells that are more affordable and easier to source at the required scale, the additional two solar cells listed in Table \ref{tab:solar_cells} are modelled within the \ddt. The SunPower cells are the next highest efficiency cell, although they are rigid and therefore constrained to a smaller usable wing area. The Ascent Solar cells have the lowest efficiency of the three, but are flexible like the Microlink cells enabling the use of the maximum wing area. The following charts shows the feasible space plot assuming both the SunPower and the Ascent Solar cells (Figures \ref{fig:required_span_sunpower} \& \ref{fig:required_span_ascent}).
+
+    \begin{figure}[H]
+        \centering
+        \subfigure[Minimum wingspan required assuming specs of SunPower solar cells]{\label{fig:required_span_sunpower}\includegraphics[width=0.8\textwidth, trim=0cm 0cm 0cm 1cm, clip=true]{figures/10kg_payload_sunpower.png}}
+        \subfigure[Minimum wingspan required assuming specs of Ascent Solar cells]{\label{fig:required_span_ascent}\includegraphics[width=0.8\textwidth, trim=0cm 0cm 0cm 1cm, clip=true]{figures/10kg_payload_ascent.png}}
+        \caption{Feasible mission space: comparison of lower technology solar cell alternatives}
+    \end{figure}
+
+    The effects of changing the solar cell technology assumptions are the most significant yet. For the SunPower solar cell case in Figure \ref{fig:required_span_sunpower}, the HALE aircraft would have to grow to 46 meters to be capable of year-round flight, while the baseline design case would grow to about 43 meters. In the Ascent Solar case illustrated in Figure \ref{fig:required_span_ascent}, the feasible shrinks space so considerably that perennial flight is no longer feasible at any span, and the baseline mission would be sized at about 46 meters. The 20 meter span region is nearly absent from this plot, given the low efficiency of the cells more wing area and therefore span is required. One key observation is the solar cell technology improvements grow the feasible space of the aircraft. Better solar technologies allow more of the incoming solar energy (which is increasingly limited farther from the summer solstice) to be utilized by the aircraft.
+
+    Analyzing these two technologies against the original Microlink cells, the key parameters are demonstrated to be those that pertain to energy closure; namely optimizing the power input from solar for a given wingspan. For the SunPower cells, the main sizing effect shrinking the boundary of the feasible space is the reduction to the usable area fraction. For the Ascent Solar cells, although the area density and flexibility of these cells is ideal, the low efficiency considerably disadvantages these cells. Therefore the driving sizing effect, which has been confirmed via a sensitivity analysis is the efficiency of the cell, followed by the properties of the cell flexibility that define how much of the wing area can be used to mount cells. Although there is an obvious sizing effect from the area density, it is less prevalent than the other two properties.
+
+    \subsubsection{Battery Technologies}
+    The energy storage system of the vehicle is a significant fraction of the total weight breakdown for most long endurance solar-electric aircraft, therefore the ratio energy storage capacity to mass is a critical sizing parameter. The aircraft's batteries are sized to provide enough storage to keep the aircraft aloft throughout each night of the mission. For the baseline mission, sensitivity of energy density is depicted in Figure \ref{fig:battery} using results from the \ddt. This sensitivity plot illustrates that below 400 Watt-hours per kilogram the aircraft span rapidly grows into the range where the complexity and risk make the mission effectively infeasible, while the effect is somewhat linear above 450 Watt-hours per kilogram. However, the more critical sizing parameter is the installed specific energy, which includes the weight of wiring, battery management systems, and heating and cooling devices as needed. To define this pack-level specific energy, a battery packing factor is used, which is the ratio of the battery cell weight to the total battery system weight, and assumed to be 89\% throughout.
+
+    \begin{figure}[H]
+        \centering
+        \includegraphics[width=0.7\textwidth]{figures/batt_spec_energy_sweep.png}
+        \caption{Influence of cell-level battery specific energy on aircraft size, subject to baseline mission feasibility.}
+        \label{fig:battery}
+    \end{figure}
+
+    Battery specific energy (measured at the cell level) is currently above 450 Wh/kg for a handful of advanced cell chemistries, and is approaching 500 Wh/kg in the coming years \cite{Amprius, Licerion}. Similar to the solar cells, these state-of-the-art batteries are costly and potentially difficult to acquire at the required scale for these aircraft. Additionally, other prominent risks of battery use, such as thermal runaway and fire, potentially increases for more exotic and cutting edge cell chemistries. Therefore, we explore the effect of using slightly less energy dense batteries (400 Wh/kg) in the plot below (Figure \ref{fig:required_span_400}). We also take a look at the potential improvement in the feasible space should current trends continue and cell level battery energy densities increase to 500 Wh/kg (Figure \ref{fig:required_span_500}).
+    \begin{figure}[H]
+        \centering
+        \subfigure[Minimum wingspan required assuming specs 400 Wh per kg batteries]{\label{fig:required_span_400}\includegraphics[width=0.8\textwidth, trim=0cm 0cm 0cm 1cm, clip=true]{figures/10kg_payload_400_batteries.png}}
+        \subfigure[Minimum wingspan required assuming specs 500 Wh per kg batteries]{\label{fig:required_span_500}\includegraphics[width=0.8\textwidth, trim=0cm 0cm 0cm 1cm, clip=true]{figures/10kg_payload_500_batteries.png}}
+        \caption{Feasible mission space: comparison of various battery energy density assumptions}
+    \end{figure}
+
+    The sensitivity of solar aircraft size to this key parameter cannot be overstated; required aircraft size for a given mission decreases precipitously as battery specific energy increases. Assuming only a minimal decrease of specific energy density to 400 Wh/kg, the baseline sizing case grows to 40 meters and the perennial aircraft is about 44 meters. However, this trend is much more optimistic looking at Figure \ref{fig:required_span_500}. Assuming the current trend in battery specific energy improvements continue, the risk of developing these solar aircraft decreases considerably. The perennial aircraft is only 34 meters, and the 20 meter wingspan region extends to 40 degrees latitude North and South in the summer season. It is worth noting however, that better battery technology still does not enable perennial flight at high latitudes, but rather appears to make regions and seasons where stratospheric flight is possible less risky due to smaller aircraft sizing. The relative importance of improved battery technology is therefore more significant in the mid latitude range, given aircraft designed for high latitude flight have a much lower battery mass fraction given the nearly 24-hour sun.
+
+    % \subsubsection{Propulsion Train Efficiency}
+    % Lastly, the propulsion system is another key technology area, as any efficiency losses within the propulsion train require the battery system to grow in mass to compensate. Here, the key component is the motor. It is necessary to have highly efficient motors that are also lightweight, as this aircraft is most sensitive to any energy losses followed shortly by mass increases. Additionally, in this design space we are especially sensitive to specific-torque rather than specific power. This is because this HALE aircraft has extremely low disc loading when compared to conventional aircraft. For these long endurance aircraft it is critical to minimize induced losses in the propeller, to minimize aerodynamic losses in the system. Therefore, the ideal propeller has a large swept area but produces little thrust, which then requires a motor with low $k_v$. In this low $k_v$ range, mass scales more closely with torque than it does with power. \TODO{add more here?}
+
+
+    % \section{Additional Potential Science Missions}
+    % \label{section:science_missions}
+    % @ I feel like we can fully cut this section given we start by looking at two representative missions -Annick
+
+    % The following section outlines the proposed missions that could be enabled by a solar aircraft. As described in the Introduction, each of these climate missions would capture data that would enable real time monitoring of key parameters that would enable data-driven models for risk in a range of potential climate catastrophes. This \ddt\ framework was first approached using the Ozone Monitoring Mission as the baseline case, therefore this mission will serve as an representative example of the capabilities of the tool and a proof of concept vehicle. The following proposed missions are also being explored using the framework of the \ddt, and would be able to leverage on much of the original vehicle design. This includes, but is not limited to, the overall vehicle configuration, avionics, controls, and the lightweight structural design.
+
+    % \subsection{Ozone Monitoring Mission (Baseline Mission)}
+    % \label{section:baseline_mission_science}
+    % During the summer months over the continental United States, storms force water vapor and the precursors of halogen radicals that lead to the catalytic conversion of the chlorine into the lower stratosphere. This can lead to an acceleration of the chemical processes by which ozone is destroyed \cite{Anderson}. To better understand this phenomena, as well as predict the effects it will have on the climate and human health, Professor James Anderson at Harvard has developed an instrument capable of measuring free radicals above these convective storms. The most salient use of this data is to better understand the link between the loss of the ozone in the lower stratosphere and the rise in skin cancer cases within the United States. To best enable this study, a platform must be capable of flight at an altitude of at least 60,000 ft for six weeks between mid-July and the end of August over the continental United States (CONUS). In personal correspondence, Dr. Anderson estimated that a payload with a mass of 30 kg, daytime power draw of 500 W, and nighttime power draw of 150 W would be sufficient to meet scientific objectives.
+
+    % \subsection{Arctic Ice Mission}
+    % One of the major drivers of rising sea levels is melting of land-based ice systems, such as glaciers and ice sheets. Greenland is a major epicenter of this climate phenomenon, and therefore the ideal location to gain an understanding of this growing climate risk. There is a current lack of data both mapping the topography of the bedrock and the temporal change in the ice and melt flow in Greenland. An ice-band penetrating radar with a frequency of approximately 60 MHz would be able to collect this data from the stratosphere. Since the key season for these measurements are the summer months and daylight is plentiful at these high latitudes, this appears to be a feasible mission according to the \ddt. Additionally, the low-frequency radar instrument falls within the feasible mass and power range.
+
+    % \subsection{Tropical Cyclone Tracking Mission}
+    % As climate change increases the frequency and severity of severe storm events, there is a clear need for risk forecasting of hurricanes and typhoons as they approach land and cause damage to human life and property. The critical parameters of a tropical storm are the wind speed and water vapor within the cyclone, as these are key predictors of risk to populous coastal areas. Satellite measurements are limited by low spatial resolution, short dwell times, and long revisit times while manned aircraft are incapable of persistent monitoring due to endurance limitations. A HALE aircraft designed for this application would carry an X-band scanning Doppler radar, capable of measuring vertical and horizontal wind profiles at a 1 km resolution, and a microwave sounder to measure relative humidity and temperature within the cyclone. According to initial sizing studies utilizing the \ddt\ and assuming this payload of approximately 20 kg, this would be a feasible mission for a majority of the historical hurricane season.
+
+    % \subsection{Soil Moisture Monitoring Missions}
+    % Several key climate risks that have been exacerbated by the changing climate can all be captured by an aircraft capable of high resolution and high accuracy soil moisture data. The first mission need would be drought monitoring and forecasting, as the UN predicts about 150 million climate refugees by mid-century, many of whom will forced to leave their homes due to water supply and crop loss. Additionally, severe storm events in both inland regions and coastal cities are predicted to cause significant flooding, that can be predicted using soil moisture measurements. Lastly, as seen in California, Australia, and many other regions, wildfires are a growing persistent risk to human life, natural ecosystems, and property. This risk can also be assessed using soil moisture measurements. %Persistent monitoring of key risk areas during the fire season could enable localized firefighting response to identified areas of major risk, hopefully stemming any initial fires before they become uncontrolled blazes. Flooding risk is predominately in the rainy season in spring, while both drought and fire risk is highest in the summer and early fall.
+    % All three of these missions would take place in the feasible space which provides adequate sunlight for the solar-electric HALE system. The instrument that would enable soil moisture data collection from altitudes of 20 kilometers would be a L-band radar or potentially a radiometer, which appears to be within the payload feasible mass and power range.
+
+
+% Overview of Design Challenges--optimization pushes towards extreme edge of design case
+% - very light structure means fragile main spar and appendages
+% - solar cell, area and mechanical challenges
+% - dynamic aero problem, introduce tailerons? nah probably not
+% References: Helios, Zephyr, Aquila, Ray Morgan Paper
+
+% Because HALE aircraft are required to close the power cycle during all dates and geographic locations in the mission profile, the tight constraints placed on component mass and wing area push any design to edge cases of feasible structures. To achieve the low structural mass fractions required for flight, HALE aircraft have adopted the extremely fragile construction methods that were first pioneered in human powered aircraft (HPV) designs such as Daedalus  [CITE DAEDALUS]. To this point, a large number of prototype HALE aircraft flown in the past have suffered some type of structural failure [aquila,helios,daedalus] from exceeding the very narrow limitations of these structures. Additionally, the power constraint which places a minimum on the wing surface area presents the challenge of maximizing solar cell coverage while still drawing maximum power from the cell. 
+% \\
+% Mechanical Structure Issues
+% - plenty of examples of structural failure exist between HALE and HPVs (Daedalus, Helios, Zephyr)
+% -mass requirement means tube spar and film skin structure (all aircraft have used these)
+% -typically strength limited by boundary case (in our case cosine gust)
+% -thin shell buckling modes, brazier effect, limits of composites and mitigation/management techniques (Daedalus, Brazier Paper)
+% \\
+% For the number of functioning prototype HALE vehicles that have been flight tested, nearly all have suffered some form of structural failure. Facebook's Aquila, NASA's Helios, and the HPVs such as Daedalus that inspired their designs broke up at some point during flight. The root cause of this fragility is the incredibly optimized structural design that is necessary to keep mass fractions of the vehicle in check, this leads to a wing structure that consists of a single main spar which supports a thin film aerodynamic surface. Focusing on the spar, need to achieve reasonable stiffness while avoid thin shell failure modes that inevitably arise (brazier, waviness). Not known what previous aircraft other than Daedalus did, but the spar needs to be designed with thick spar cap with thin tube that in some way prevents ovalization. Primary worry is gust case + torsional stiffness for control.
+% \\
+% Solar Cells and related Hardware
+% - design requirement means that lots of area is taken by cells (Ray morgan paper)
+%     - need to use fullest extent of wing possible
+% - curvature constraint on cells (picture or data)
+% - efficiency losses due to curvature (our test data, Ray Morgan)
+% - CTE and fixing to airfoil
+% -requirement of panel backing (anecdotal, will need to do math for this)
+% - stringing for optimal power output, MPPT (May need to co-opt Annick's work on this)
+% \\
+% The issue of flying with solar cells is also prescient in the design process. Coverage is important, need to use as much area as possible on wing--Most cells are designed for terrestial applications where they can be heavy and flat, this presents issues when trying to form them for airfoils and wing bending at the same time. This means that in almost any design solar cells must be isolated from one axis of bending. Most cells are wafers printed onto backing, and those that are not tend to be less efficient unless exquisite. Must also consider how cells are laid out on the wing for maximum power tracking, this requires examination of the daily flight conditions and heading, especially during morning and evening. MPPTs can be used, but everything needs to be considered with to reduce the number of voltage steps required for end use and avoiding losses.
+% \\
+% Dynamic Aero Issues and control problem
+% - aircraft are inherently flexible, so typical rigid body assumptions breakdown
+% - unstable modes and loss of control have brought down other aircraft (Zephyr, Aquila, Daedalus)
+% - Issue of state measurement, and control reversal, divergence
+% \\
+% Drawing on previous two sections, these aircraft are both extremely large and extremely light weight--which means they are very flexible aircraft. This presents control and state tracking issues that can eventually lead to structural failures (Zephyr, Daedalus). These issues mean that traditional definitions and flight controls can no longer be applied (bank angle). It also means that traditional control schemes are possible, control reversal is a common problem because torsional stiffness is very low. Must consider symmetric and asymmetric gust modes during spar and airfoil design to mitigate these issues. Must also have some way to test control schemes and forces. Some aircraft have used 3-boom structure to avoid this, but have not been flight tested (Odysseus). Also cannot be easily captured in the optimization process during design.
+% \\
+% How does this all effect design?
+% - how to design spar, supports to prevent buckling
+% - cell layout, string layout for MPPT
+% - 3 boom aircraft, tailerons
+
+
+    \section{Evaluating the Proposed Climate Missions}
+    Following this parametric sizing study, we now return to the original two proposed missions where the capabilities of HALE aircraft can provide key insights into the changing climate structure. Figure \ref{fig:required_span} outlines the minimum wingspan required for energy closure for the baseline stratospheric chemistry monitoring mission, identifying the sizing span in the monitoring region to be just shy of 40 meters. From the previous section it has been demonstrated that lighter instrumentation payloads, lower payload power requirements, and regions at high latitudes all reduce the minimum wingspan requirement and make for less expensive and risky aircraft designs. Given the arctic ice dynamics mission has all those potential advantages, we expect the sizing to be more favorable and the mission considerably less risky.
+
+    A feasible space sweep is conducted for the arctic ice dynamics mission assuming the following key engineering requirements:
+
+    \textbf{Arctic Ice Dynamics Mission:}
+
+    \begin{itemize}
+        \item The aircraft shall cruise at a pressure altitude greater than or equal to the height of the stratosphere as determined by the stratosphere model
+        \item The aircraft shall be capable of continuous flight during the \textit{date-seasonality envelope}, a box constraint defined as the combination of:
+        \begin{itemize}
+            \item Any (at least six-week) operating period that is a contiguous subset of the summer months
+            \item Any location over Greenland and the West Arctic Ice Sheet (corresponding to latitudes 60-80 N and 60-60 S)
+        \end{itemize}
+        \item The aircraft shall carry a 6 kg scientific payload that consumes 100 W of power continuously.
+        \item The aircraft shall be capable of stationkeeping over the duration of any day in the mission space with 95th-percentile sustained winds.
+    \end{itemize}
+
+    The results of the study are presented in Figure \ref{fig:required_span_arctic}. The analysis to determine the sizing case is slightly different than the baseline mission, given the sizing case was much more intuitively identified from the mission requirements of the stratospheric chemistry mission. In this case however, the seasonality requirements are significantly less rigid, allowing one to trade the vehicle size against the capability. The dashed lines represent the latitude region of interest, bounded seasonally by not the mission requirements but rather the feasibility of the aircraft. Given the gradient of sizing is dramatically steep at this latitude range, the seasonal capability is defined for us by Figure \ref{fig:required_span_arctic}. Therefore, the sizing case of the HALE vehicle required to conduct this mission appears to be one of 22 meters span.
+
+    \begin{figure}[H]
+        \centering
+        \includegraphics[width=\textwidth,trim=0cm 0cm 0cm 1cm, clip=true]{figures/6kg_payload_100Ww_mission.png}
+        \caption{Feasible mission space: minimum wingspan required for energy closure for a given date and location for the Arctic ice dynamics mission}
+        \label{fig:required_span_arctic}
+    \end{figure}
+
+    Comparing this mission chart against the stratospheric chemistry mission pictured in Figure \ref{fig:required_span}, the outlined advantages of the Arctic mission are obvious. The size of the aircraft grows nearly double to complete the stratospheric chemistry mission, which adds considerable programmatic and structural risk to the mission development. Therefore a logical application of this observation would be to pursue this Arctic ice mission first as a demonstration of the technology and a risk-reduction mission, and explore other high-latitude missions to follow given the considerable payload capacity demonstrated by Figure \ref{fig:payload_capability}.
+
+    One potential mission in this region is the mapping of the Greenland bedrock with a ice-penetrating radar, to improve the knowledge of both the total glacial volume and the bedrock topography, as it is the main facilitator of glacial flow. Although this mission requires a payload of considerable mass, likely 40-60 kilograms, this study has demonstrated the possibility of large payloads at high latitudes. Future work includes pursing this mission, and exploring others via scientific partnerships that would have high-reward outcomes in this remote Arctic and Antarctic region.
+
+
+    \section{Conclusion}
+    Throughout this paper, the feasible design space of HALE solar-electric aircraft is explored, and a range of potential missions are discussed in reference to this feasible space. The rapid multidisciplinary design optimization made possible with the \ddt\ is used to map the contours of the HALE performance envelope, using required wingspan as a proxy for the aerostructural risks of building and operating a large aircraft with extremely low wing loading. These feasible mission space charts are recreated to show how this space grows as the key technological parameters improve, including battery specific energy and solar cell efficiency.
+
+    From this analysis, the following key observations are made. First, perennial aircraft are considerably high risk with limited payload capacity. This is consistent with the many historical examples of demonstrator aircraft designed to fly year-round, and face many programmatic and technical challenges with the large wingspan and considerable investment in key technologies. Looking to Figure \ref{fig:required_span_arctic}, which represents the feasible space for the lowest payload mass and power requirements modeled within this paper, the perennial aircraft would require a wingspan of approximately 34 meters and operate within a very limited latitude band. The most technologically advanced solar cells and batteries are no doubt required to make this aircraft close reasonably.
+
+    However, the more promising observation is aircraft designed for operation within the highly feasible region of the design space (namely summer months at high latitudes) converge to wingspans below 20 meters. Targeting climate science phenomena which are observable during the summer months, and particularly those and high latitudes as well, provide an excellent set of potential missions to prove the capability of such a platform.
+
+    \section*{Appendix}
+    \label{appendix}
+
+    The \ddt\ and all code written in support of this paper is freely available on GitHub at \url{https://github.com/peterdsharpe/DawnDesignTool}. The underlying \asb\ optimization framework, which includes several key models for solar aircraft performance, is available at \url{https://github.com/peterdsharpe/AeroSandbox}.
+
+    \section*{Acknowledgments}
+
+    The contributions presented in this paper would not have been possible without the additional support of Dr. John Langford (Electra.aero), Dr. Mark Drela (MIT), Trevor Long (MIT), Craig Mascarenhas (Harvard), Dr. Kevin Uleck (Aurora Flight Sciences), Dr. James Anderson (Harvard), and Dr. Brent Minchew (MIT). This work also builds on research done by many undergraduates enrolled in 16.82: Flight Vehicle Engineering and 16.821: Flight Vehicle Development at the MIT Department of Aeronautics and Astronautics; in particular, the authors thank students Julia Gaubatz and Jamie Abel.
+
+    This work was partially supported by the Department of Defense (DoD) through the National Defense Science \& Engineering Graduate (NDSEG) Fellowship Program, and we gratefully acknowledge their funding.
+
+    The authors acknowledge the MIT SuperCloud and Lincoln Laboratory Supercomputing Center for providing high-performance computing resources that have contributed to the research results reported within this paper.
+
+    \printbibliography
+
+
+\end{document}
+ 
